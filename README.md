@@ -2,7 +2,7 @@
 
 通过 [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) 聚合 GitHub / GitLab / Figma 等开发工具的 Server。
 
-支持所有兼容 MCP 的客户端：Kiro、Codex、Claude Desktop、Cursor、VS Code (Copilot) 等。
+支持所有兼容 MCP 的客户端：Claude Code、Codex、VS Code (Copilot)、Kiro、Cursor 等。
 
 ## 提供的工具
 
@@ -14,135 +14,124 @@
 | `gitlab_get_file` | 获取 GitLab 仓库中指定文件的内容 |
 | `gitlab_list_files` | 列出 GitLab 仓库的文件目录 |
 | `gitlab_search_code` | 搜索 GitLab 仓库代码 |
+| `figma_inspect` | 按前缀查找 Figma 设计稿中的节点 |
+| `figma_tree` | 浏览 Figma 节点树（支持过滤） |
+| `figma_images` | 获取 Figma 节点导出图片 URL |
+| `figma_export` | 批量导出 Figma 节点图片（返回 URL + 映射） |
+| `figma_text` | 提取 Figma 设计稿中的文字、颜色和高亮 |
 
-## 快速开始
+## 快速安装
+
+> 需要 Node.js ≥ 18.0，可通过 `node -v` 检查版本。
 
 ```bash
-git clone https://github.com/你的用户名/mcp-dev-tools.git
-cd mcp-dev-tools
+git clone https://github.com/dan-0526/mcp-dev-tools.git ~/mcp-dev-tools
+cd ~/mcp-dev-tools
 npm install
 ```
 
-## 配置密钥
+## 获取 Token
 
-你需要准备 Token（按需选一个或都配）：
+按需准备，不用的平台留空即可：
 
-**GitHub Token:**
-1. 打开 https://github.com/settings/tokens
-2. Generate new token (classic) → 勾选 `repo` 权限
-3. 复制 token
+- **GitHub**: https://github.com/settings/tokens → Generate new token (classic) → 勾选 `repo`
+- **GitLab**: GitLab → Preferences → Access Tokens → 勾选 `read_repository`
+- **Figma**: Figma → 左上角头像 → Settings → Personal access tokens → Generate new token
 
-**GitLab Token:**
-1. GitLab → Preferences → Access Tokens
-2. 创建 token → 勾选 `read_repository`
-3. 复制 token
+> ⚠️ Token 不要提交到仓库，通过各客户端的 env 配置传入。
 
-> ⚠️ Token 不要提交到仓库，通过下面各客户端的 `env` 配置传入。
+---
 
 ## 客户端配置
 
-下面的 `command` 路径请替换为你本机的实际路径。
+选择你使用的客户端，复制命令到终端执行。**执行前先替换 `<...>` 占位符为你自己的值。**
 
-### Kiro
+> 路径示例：如果你 clone 到了 `~/mcp-dev-tools`，那绝对路径就是 `/Users/yourname/mcp-dev-tools/src/index.js`，macOS 下可以通过 `pwd` 命令查看。
 
-编辑 `.kiro/settings/mcp.json`（工作区）或 `~/.kiro/settings/mcp.json`（全局）：
+### Claude Code
 
-```json
-{
-  "mcpServers": {
-    "dev-tools": {
-      "command": "node",
-      "args": ["/absolute/path/to/mcp-dev-tools/src/index.js"],
-      "env": {
-        "GITHUB_TOKEN": "ghp_your_token_here",
-        "GITLAB_TOKEN": "glpat-your_token_here",
-        "GITLAB_URL": "https://gitlab.com"
-      }
-    }
-  }
-}
-```
-
-### Claude Desktop
-
-编辑 `~/Library/Application Support/Claude/claude_desktop_config.json`（macOS）：
-
-```json
-{
-  "mcpServers": {
-    "dev-tools": {
-      "command": "node",
-      "args": ["/absolute/path/to/mcp-dev-tools/src/index.js"],
-      "env": {
-        "GITHUB_TOKEN": "ghp_your_token_here",
-        "GITLAB_TOKEN": "glpat-your_token_here",
-        "GITLAB_URL": "https://gitlab.com"
-      }
-    }
-  }
-}
-```
-
-### Cursor
-
-编辑 `~/.cursor/mcp.json`：
-
-```json
-{
-  "mcpServers": {
-    "dev-tools": {
-      "command": "node",
-      "args": ["/absolute/path/to/mcp-dev-tools/src/index.js"],
-      "env": {
-        "GITHUB_TOKEN": "ghp_your_token_here",
-        "GITLAB_TOKEN": "glpat-your_token_here",
-        "GITLAB_URL": "https://gitlab.com"
-      }
-    }
-  }
-}
+```bash
+claude mcp add dev-tools \
+  -e GITHUB_TOKEN=<your-github-token> \
+  -e GITLAB_TOKEN=<your-gitlab-token> \
+  -e GITLAB_URL=https://gitlab.com \
+  -e FIGMA_TOKEN=<your-figma-token> \
+  -- node <绝对路径>/mcp-dev-tools/src/index.js
 ```
 
 ### VS Code (GitHub Copilot)
 
-编辑 `.vscode/mcp.json`（工作区级别）：
+在项目根目录执行：
 
-```json
+```bash
+mkdir -p .vscode
+cat > .vscode/mcp.json << 'EOF'
 {
   "servers": {
     "dev-tools": {
       "type": "stdio",
       "command": "node",
-      "args": ["/absolute/path/to/mcp-dev-tools/src/index.js"],
+      "args": ["<绝对路径>/mcp-dev-tools/src/index.js"],
       "env": {
-        "GITHUB_TOKEN": "ghp_your_token_here",
-        "GITLAB_TOKEN": "glpat-your_token_here",
-        "GITLAB_URL": "https://gitlab.com"
+        "GITHUB_TOKEN": "<your-github-token>",
+        "GITLAB_TOKEN": "<your-gitlab-token>",
+        "GITLAB_URL": "https://gitlab.com",
+        "FIGMA_TOKEN": "<your-figma-token>"
       }
     }
   }
 }
+EOF
 ```
 
-### OpenAI Codex CLI
+### Codex CLI
 
-编辑 `~/.codex/config.json`：
+```bash
+mkdir -p ~/.codex
+cat >> ~/.codex/config.toml << 'EOF'
 
-```json
+[mcp_servers.dev-tools]
+command = "node"
+args = ["<绝对路径>/mcp-dev-tools/src/index.js"]
+env = { "GITHUB_TOKEN" = "<your-github-token>", "GITLAB_TOKEN" = "<your-gitlab-token>", "GITLAB_URL" = "https://gitlab.com", "FIGMA_TOKEN" = "<your-figma-token>" }
+EOF
+```
+
+### Kiro / Cursor
+
+这两个客户端格式相同，区别只在配置文件路径：
+
+| 客户端 | 配置文件路径 |
+|--------|-------------|
+| Kiro（全局） | `~/.kiro/settings/mcp.json` |
+| Kiro（工作区） | `.kiro/settings/mcp.json` |
+| Cursor | `~/.cursor/mcp.json` |
+
+配置内容（以 Kiro 全局为例）：
+
+```bash
+mkdir -p ~/.kiro/settings
+cat > ~/.kiro/settings/mcp.json << 'EOF'
 {
   "mcpServers": {
     "dev-tools": {
       "command": "node",
-      "args": ["/absolute/path/to/mcp-dev-tools/src/index.js"],
+      "args": ["<绝对路径>/mcp-dev-tools/src/index.js"],
       "env": {
-        "GITHUB_TOKEN": "ghp_your_token_here",
-        "GITLAB_TOKEN": "glpat-your_token_here",
-        "GITLAB_URL": "https://gitlab.com"
+        "GITHUB_TOKEN": "<your-github-token>",
+        "GITLAB_TOKEN": "<your-gitlab-token>",
+        "GITLAB_URL": "https://gitlab.com",
+        "FIGMA_TOKEN": "<your-figma-token>"
       }
     }
   }
 }
+EOF
 ```
+
+Cursor 只需把路径改为 `~/.cursor/mcp.json`。
+
+---
 
 ## 项目结构
 
@@ -152,8 +141,9 @@ mcp-dev-tools/
 │   ├── index.js      # 入口，启动 MCP Server
 │   ├── tools.js      # 工具注册
 │   ├── github.js     # GitHub API 封装
-│   └── gitlab.js     # GitLab API 封装
-├── .env.example       # 环境变量模板（仅参考）
+│   ├── gitlab.js     # GitLab API 封装
+│   └── figma.js      # Figma API 封装
+├── .env.example
 ├── .gitignore
 ├── package.json
 └── README.md
@@ -165,7 +155,8 @@ mcp-dev-tools/
 
 - "帮我看看 github 上 facebook/react 的 package.json"
 - "列出 gitlab 项目 mygroup/myproject 的 src 目录"
-- "读一下 github 上 vuejs/core 的 main 分支的 README.md"
+- "看一下这个 Figma 设计稿的节点树：https://www.figma.com/design/xxx"
+- "提取这个 Figma 页面里的所有文字内容"
 
 ## License
 
