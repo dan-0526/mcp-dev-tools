@@ -1,6 +1,6 @@
-# mcp-git-server
+# mcp-dev-tools
 
-通过 [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) 获取 GitHub / GitLab 仓库代码的 Server。
+通过 [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) 聚合 GitHub / GitLab / Figma 等开发工具的 Server。
 
 支持所有兼容 MCP 的客户端：Kiro、Codex、Claude Desktop、Cursor、VS Code (Copilot) 等。
 
@@ -10,14 +10,16 @@
 |------|------|
 | `github_get_file` | 获取 GitHub 仓库中指定文件的内容 |
 | `github_list_files` | 列出 GitHub 仓库的文件目录 |
+| `github_search_code` | 搜索 GitHub 仓库代码 |
 | `gitlab_get_file` | 获取 GitLab 仓库中指定文件的内容 |
 | `gitlab_list_files` | 列出 GitLab 仓库的文件目录 |
+| `gitlab_search_code` | 搜索 GitLab 仓库代码 |
 
 ## 快速开始
 
 ```bash
-git clone https://github.com/你的用户名/mcp-git-server.git
-cd mcp-git-server
+git clone https://github.com/你的用户名/mcp-dev-tools.git
+cd mcp-dev-tools
 npm install
 ```
 
@@ -48,9 +50,9 @@ npm install
 ```json
 {
   "mcpServers": {
-    "git-server": {
+    "dev-tools": {
       "command": "node",
-      "args": ["/absolute/path/to/mcp-git-server/src/index.js"],
+      "args": ["/absolute/path/to/mcp-dev-tools/src/index.js"],
       "env": {
         "GITHUB_TOKEN": "ghp_your_token_here",
         "GITLAB_TOKEN": "glpat-your_token_here",
@@ -68,9 +70,9 @@ npm install
 ```json
 {
   "mcpServers": {
-    "git-server": {
+    "dev-tools": {
       "command": "node",
-      "args": ["/absolute/path/to/mcp-git-server/src/index.js"],
+      "args": ["/absolute/path/to/mcp-dev-tools/src/index.js"],
       "env": {
         "GITHUB_TOKEN": "ghp_your_token_here",
         "GITLAB_TOKEN": "glpat-your_token_here",
@@ -88,9 +90,9 @@ npm install
 ```json
 {
   "mcpServers": {
-    "git-server": {
+    "dev-tools": {
       "command": "node",
-      "args": ["/absolute/path/to/mcp-git-server/src/index.js"],
+      "args": ["/absolute/path/to/mcp-dev-tools/src/index.js"],
       "env": {
         "GITHUB_TOKEN": "ghp_your_token_here",
         "GITLAB_TOKEN": "glpat-your_token_here",
@@ -108,10 +110,10 @@ npm install
 ```json
 {
   "servers": {
-    "git-server": {
+    "dev-tools": {
       "type": "stdio",
       "command": "node",
-      "args": ["/absolute/path/to/mcp-git-server/src/index.js"],
+      "args": ["/absolute/path/to/mcp-dev-tools/src/index.js"],
       "env": {
         "GITHUB_TOKEN": "ghp_your_token_here",
         "GITLAB_TOKEN": "glpat-your_token_here",
@@ -129,9 +131,9 @@ npm install
 ```json
 {
   "mcpServers": {
-    "git-server": {
+    "dev-tools": {
       "command": "node",
-      "args": ["/absolute/path/to/mcp-git-server/src/index.js"],
+      "args": ["/absolute/path/to/mcp-dev-tools/src/index.js"],
       "env": {
         "GITHUB_TOKEN": "ghp_your_token_here",
         "GITLAB_TOKEN": "glpat-your_token_here",
@@ -145,7 +147,7 @@ npm install
 ## 项目结构
 
 ```
-mcp-git-server/
+mcp-dev-tools/
 ├── src/
 │   ├── index.js      # 入口，启动 MCP Server
 │   ├── tools.js      # 工具注册

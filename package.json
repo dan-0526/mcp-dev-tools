@@ -1,11 +1,11 @@
 {
-  "name": "mcp-git-server",
-  "version": "0.1.0",
-  "description": "MCP Server for fetching GitHub/GitLab repository code",
+  "name": "mcp-dev-tools",
+  "version": "0.2.0",
+  "description": "MCP Server for GitHub, GitLab, Figma and more dev tools",
   "type": "module",
   "main": "src/index.js",
   "bin": {
-    "mcp-git-server": "src/index.js"
+    "mcp-dev-tools": "src/index.js"
   },
   "scripts": {
     "start": "node src/index.js",

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * MCP Git Server
- * 通过 MCP 协议获取 GitHub / GitLab 仓库代码
+ * MCP Dev Tools
+ * 通过 MCP 协议聚合 GitHub / GitLab / Figma 等开发工具
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -10,8 +10,8 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { registerTools } from './tools.js';
 
 const server = new McpServer({
-  name: 'mcp-git-server',
-  version: '0.1.0'
+  name: 'mcp-dev-tools',
+  version: '0.2.0'
 });
 
 registerTools(server);
@@ -19,7 +19,7 @@ registerTools(server);
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('🚀 mcp-git-server running (stdio)');
+  console.error('🚀 mcp-dev-tools running (stdio)');
 }
 
 main().catch((err) => {
