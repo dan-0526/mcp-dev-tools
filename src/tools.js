@@ -6,6 +6,7 @@ import { z } from 'zod';
 import * as github from './github.js';
 import * as gitlab from './gitlab.js';
 import * as figma from './figma.js';
+import * as vision from './vision.js';
 
 export function registerTools(server) {
   // --- GitHub ---
@@ -327,6 +328,36 @@ export function registerTools(server) {
           content: [
             { type: 'text', text: `${result.count} TEXT nodes\n\n${summary}` }
           ]
+        };
+      } catch (err) {
+        return {
+          content: [{ type: 'text', text: `❌ Error: ${err.message}` }]
+        };
+      }
+    }
+  );
+
+  // --- Vision / Image Recognition ---
+
+  server.tool(
+    'image_recognize',
+    {
+      imagePath: z.string().describe('Absolute path to the image file'),
+      prompt: z
+        .string()
+        .optional()
+        .describe('Custom prompt for API-based recognition (ignored for local OCR)'),
+      lang: z
+        .string()
+        .optional()
+        .describe('OCR languages, comma-separated, e.g. "zh-Hans,en" (local OCR only)')
+    },
+    async ({ imagePath, prompt, lang }) => {
+      try {
+        const result = await vision.recognizeImage(imagePath, { prompt, lang });
+        const header = `🔍 Provider: ${result.provider}${result.model ? ` (${result.model})` : ''}`;
+        return {
+          content: [{ type: 'text', text: `${header}\n\n${result.text}` }]
         };
       } catch (err) {
         return {
