@@ -340,6 +340,30 @@ export function registerTools(server) {
   // --- Vision / Image Recognition ---
 
   server.tool(
+    'figma_css',
+    {
+      figmaUrl: z.string().describe('Figma design URL'),
+      nodeIds: z
+        .array(z.string())
+        .describe('Array of node IDs to extract CSS from')
+    },
+    async ({ figmaUrl, nodeIds }) => {
+      try {
+        const result = await figma.css(figmaUrl, nodeIds);
+        return {
+          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+        };
+      } catch (err) {
+        return {
+          content: [{ type: 'text', text: `❌ Error: ${err.message}` }]
+        };
+      }
+    }
+  );
+
+  // --- Vision / Image Recognition ---
+
+  server.tool(
     'image_recognize',
     {
       imagePath: z.string().describe('Absolute path to the image file'),

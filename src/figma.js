@@ -141,6 +141,173 @@ async function fetchRoot(fileKey, nodeId) {
   return root;
 }
 
+// ─── CSS 提取工具 ───
+
+function fillToCSS(fills) {
+  if (!Array.isArray(fills) || !fills.length) return {};
+  const visible = fills.filter((f) => f.visible !== false);
+  if (!visible.length) return {};
+
+  const css = {};
+  for (const fill of visible) {
+    if (fill.type === 'SOLID' && fill.color) {
+      const hex = rgb01ToHex(fill.color);
+      const a = fill.opacity ?? fill.color.a ?? 1;
+      css.background =
+        a < 1
+          ? `${hex}${Math.round(a * 255).toString(16).padStart(2, '0')}`
+          : hex;
+    } else if (fill.type === 'GRADIENT_LINEAR' && fill.gradientStops) {
+      const stops = fill.gradientStops
+        .map((s) => `${rgb01ToHex(s.color)} ${Math.round(s.position * 100)}%`)
+        .join(', ');
+      css.background = `linear-gradient(${stops})`;
+    } else if (fill.type === 'IMAGE') {
+      css.background = 'url(IMAGE)';
+    }
+  }
+  return css;
+}
+
+function effectsToCSS(effects) {
+  if (!Array.isArray(effects) || !effects.length) return {};
+  const css = {};
+  const shadows = [];
+  for (const e of effects) {
+    if (e.visible === false) continue;
+    if ((e.type === 'DROP_SHADOW' || e.type === 'INNER_SHADOW') && e.color) {
+      const { r, g, b, a = 1 } = e.color;
+      const color =
+        a < 1
+          ? `rgba(${Math.round(r * 255)},${Math.round(g * 255)},${Math.round(b * 255)},${a.toFixed(2)})`
+          : rgb01ToHex(e.color);
+      const inset = e.type === 'INNER_SHADOW' ? 'inset ' : '';
+      shadows.push(
+        `${inset}${e.offset?.x || 0}px ${e.offset?.y || 0}px ${e.radius || 0}px ${e.spread || 0}px ${color}`
+      );
+    } else if (e.type === 'LAYER_BLUR' && e.radius) {
+      css.filter = `blur(${e.radius}px)`;
+    } else if (e.type === 'BACKGROUND_BLUR' && e.radius) {
+      css['backdrop-filter'] = `blur(${e.radius}px)`;
+    }
+  }
+  if (shadows.length) css['box-shadow'] = shadows.join(', ');
+  return css;
+}
+
+function nodeToCSS(node) {
+  const css = {};
+  const box = node.absoluteBoundingBox || {};
+
+  if (box.width) css.width = `${Math.round(box.width)}px`;
+  if (box.height) css.height = `${Math.round(box.height)}px`;
+
+  if (node.opacity !== undefined && node.opacity < 1) {
+    css.opacity = node.opacity.toFixed(2);
+  }
+
+  if (node.cornerRadius) {
+    css['border-radius'] = `${node.cornerRadius}px`;
+  } else if (node.rectangleCornerRadii) {
+    const [tl, tr, br, bl] = node.rectangleCornerRadii;
+    css['border-radius'] = `${tl}px ${tr}px ${br}px ${bl}px`;
+  }
+
+  Object.assign(css, fillToCSS(node.fills));
+
+  if (node.strokes?.length && node.strokeWeight) {
+    const strokeFill = fillToCSS(node.strokes);
+    const color = strokeFill.background || '#000';
+    css.border = `${node.strokeWeight}px solid ${color}`;
+  }
+
+  Object.assign(css, effectsToCSS(node.effects));
+
+  if (node.layoutMode) {
+    css.display = 'flex';
+    css['flex-direction'] =
+      node.layoutMode === 'VERTICAL' ? 'column' : 'row';
+    if (node.itemSpacing) css.gap = `${node.itemSpacing}px`;
+    const justifyMap = {
+      MIN: 'flex-start',
+      CENTER: 'center',
+      MAX: 'flex-end',
+      SPACE_BETWEEN: 'space-between'
+    };
+    const alignMap = { MIN: 'flex-start', CENTER: 'center', MAX: 'flex-end' };
+    if (node.primaryAxisAlignItems)
+      css['justify-content'] =
+        justifyMap[node.primaryAxisAlignItems] || node.primaryAxisAlignItems;
+    if (node.counterAxisAlignItems)
+      css['align-items'] =
+        alignMap[node.counterAxisAlignItems] || node.counterAxisAlignItems;
+  }
+
+  const { paddingLeft: pl, paddingRight: pr, paddingTop: pt, paddingBottom: pb } = node;
+  if (pl || pr || pt || pb) {
+    css.padding = `${pt || 0}px ${pr || 0}px ${pb || 0}px ${pl || 0}px`;
+  }
+
+  if (node.type === 'TEXT') {
+    const s = node.style || {};
+    if (s.fontFamily) css['font-family'] = s.fontFamily;
+    if (s.fontSize) css['font-size'] = `${s.fontSize}px`;
+    if (s.fontWeight) css['font-weight'] = String(s.fontWeight);
+    if (s.lineHeightPx)
+      css['line-height'] = `${Math.round(s.lineHeightPx)}px`;
+    if (s.letterSpacing) css['letter-spacing'] = `${s.letterSpacing}px`;
+    if (s.textAlignHorizontal)
+      css['text-align'] = s.textAlignHorizontal.toLowerCase();
+    const textFill = fillToCSS(node.fills);
+    if (textFill.background) {
+      css.color = textFill.background;
+      delete css.background;
+    }
+  }
+
+  return css;
+}
+
+// ─── 6. css: 提取节点 CSS 样式 ───
+
+export async function css(figmaUrl, nodeIds) {
+  const { fileKey } = parseFigmaUrl(figmaUrl);
+  const ids = nodeIds.map((s) => normalizeNodeId(s.trim())).filter(Boolean);
+  if (!ids.length) throw new Error('缺少 nodeIds');
+
+  const data = await getNodes(fileKey, ids);
+  const results = [];
+
+  for (const id of ids) {
+    const node = data?.nodes?.[id]?.document;
+    if (!node) {
+      results.push({ id, name: '', type: '', css: {}, error: 'node not found' });
+      continue;
+    }
+    const styles = nodeToCSS(node);
+    const children = [];
+    if (node.children) {
+      for (const child of node.children) {
+        children.push({
+          id: child.id,
+          name: child.name,
+          type: child.type,
+          css: nodeToCSS(child)
+        });
+      }
+    }
+    results.push({
+      id: node.id,
+      name: node.name,
+      type: node.type,
+      css: styles,
+      children
+    });
+  }
+
+  return { fileKey, count: results.length, nodes: results };
+}
+
 // ─── 1. inspect: 按前缀查找节点 ───
 
 export async function inspect(figmaUrl, prefix = 'D2C-') {
