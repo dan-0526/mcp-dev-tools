@@ -151,7 +151,14 @@ export async function inspect(figmaUrl, prefix = 'D2C-') {
   walkNodes(root, (node) => {
     const name = node?.name || '';
     if (typeof name === 'string' && name.startsWith(prefix)) {
-      matched.push({ id: node.id, name, imageName: name.slice(prefix.length) });
+      const box = node.absoluteBoundingBox || {};
+      matched.push({
+        id: node.id,
+        name,
+        imageName: name.slice(prefix.length),
+        width: Math.round(box.width || 0),
+        height: Math.round(box.height || 0)
+      });
     }
   });
 
