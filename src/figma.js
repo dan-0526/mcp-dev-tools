@@ -195,12 +195,22 @@ function effectsToCSS(effects) {
   return css;
 }
 
-function nodeToCSS(node) {
+function nodeToCSS(node, parentBox) {
   const css = {};
   const box = node.absoluteBoundingBox || {};
 
   if (box.width) css.width = `${Math.round(box.width)}px`;
   if (box.height) css.height = `${Math.round(box.height)}px`;
+
+  // 计算相对父节点的位置
+  if (parentBox && box.x != null && box.y != null) {
+    const relX = Math.round(box.x - parentBox.x);
+    const relY = Math.round(box.y - parentBox.y);
+    if (relX !== 0 || relY !== 0) {
+      css.left = `${relX}px`;
+      css.top = `${relY}px`;
+    }
+  }
 
   if (node.opacity !== undefined && node.opacity < 1) {
     css.opacity = node.opacity.toFixed(2);
@@ -285,6 +295,7 @@ export async function css(figmaUrl, nodeIds) {
       continue;
     }
     const styles = nodeToCSS(node);
+    const parentBox = node.absoluteBoundingBox;
     const children = [];
     if (node.children) {
       for (const child of node.children) {
@@ -292,7 +303,7 @@ export async function css(figmaUrl, nodeIds) {
           id: child.id,
           name: child.name,
           type: child.type,
-          css: nodeToCSS(child)
+          css: nodeToCSS(child, parentBox)
         });
       }
     }
