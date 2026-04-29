@@ -7,6 +7,7 @@ import * as github from './github.js';
 import * as gitlab from './gitlab.js';
 import * as figma from './figma.js';
 import * as vision from './vision.js';
+import * as aiRelay from './ai-relay.js';
 
 export function registerTools(server) {
   // --- GitHub ---
@@ -386,6 +387,71 @@ export function registerTools(server) {
       } catch (err) {
         return {
           content: [{ type: 'text', text: `❌ Error: ${err.message}` }]
+        };
+      }
+    }
+  );
+
+  // --- AI Relay ---
+
+  server.tool(
+    'codex_exec',
+    {
+      prompt: z.string().describe('Task description for Codex to execute'),
+      cwd: z.string().optional().describe('Working directory for Codex'),
+      model: z.string().optional().describe('Model to use, e.g. o3, o4-mini')
+    },
+    async ({ prompt, cwd, model }) => {
+      try {
+        const result = await aiRelay.codexExec(prompt, { cwd, model });
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Codex completed.\n\n${result.stdout}${result.stderr ? '\n\nstderr:\n' + result.stderr : ''}`
+            }
+          ]
+        };
+      } catch (err) {
+        return {
+          content: [{ type: 'text', text: `Codex error: ${err.message}` }]
+        };
+      }
+    }
+  );
+
+  server.tool(
+    'claude_exec',
+    {
+      prompt: z.string().describe('Task description for Claude Code to execute'),
+      cwd: z.string().optional().describe('Working directory for Claude'),
+      model: z
+        .string()
+        .optional()
+        .describe('Model to use, e.g. opus, sonnet, haiku'),
+      allowedTools: z
+        .string()
+        .optional()
+        .describe('Comma-separated tools Claude can use, e.g. Edit,Write,Bash')
+    },
+    async ({ prompt, cwd, model, allowedTools }) => {
+      try {
+        const result = await aiRelay.claudeExec(prompt, {
+          cwd,
+          model,
+          allowedTools
+        });
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Claude completed.\n\n${result.stdout}${result.stderr ? '\n\nstderr:\n' + result.stderr : ''}`
+            }
+          ]
+        };
+      } catch (err) {
+        return {
+          content: [{ type: 'text', text: `Claude error: ${err.message}` }]
         };
       }
     }
