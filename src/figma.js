@@ -2,6 +2,9 @@
  * Figma API 封装
  */
 
+import { writeFile, mkdir } from 'node:fs/promises';
+import { dirname } from 'node:path';
+
 const FIGMA_TOKEN = process.env.FIGMA_TOKEN || '';
 const FIGMA_API = 'https://api.figma.com';
 
@@ -451,12 +454,23 @@ export async function exportImages(
   for (const [rawId, outPath] of Object.entries(mapping)) {
     const nodeId = normalizeNodeId(rawId);
     const url = imageMap[nodeId];
-    results.push({
-      nodeId,
-      outPath,
-      url: url || null,
-      status: url ? 'ok' : 'no_url'
-    });
+    if (!url) {
+      results.push({ nodeId, outPath, url: null, status: 'no_url' });
+      continue;
+    }
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        results.push({ nodeId, outPath, url, status: `download_failed_${res.status}` });
+        continue;
+      }
+      const buffer = Buffer.from(await res.arrayBuffer());
+      await mkdir(dirname(outPath), { recursive: true });
+      await writeFile(outPath, buffer);
+      results.push({ nodeId, outPath, url, status: 'ok' });
+    } catch (err) {
+      results.push({ nodeId, outPath, url, status: `error: ${err.message}` });
+    }
   }
 
   return { fileKey, format, scale, results };

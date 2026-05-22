@@ -9,6 +9,7 @@ import { join } from 'node:path';
 
 const CODEX_BIN = '/opt/homebrew/bin/codex';
 const CODEX_HOME = join(homedir(), '.codex-api'); // API profile for non-interactive dispatch
+const DEFAULT_CLAUDE_RELAY_URL = 'http://127.0.0.1:38765';
 
 // Read API key from codex-api auth.json for injection into env
 async function loadCodexApiKey() {
@@ -29,6 +30,17 @@ function findClaudeBin() {
   return join(nvmDir, 'versions/node', nodeVersion, 'bin/claude');
 }
 
+function createClaudeEnv({ preserveProxyEnv = false } = {}) {
+  const env = { ...process.env };
+  if (!preserveProxyEnv) {
+    delete env.HTTP_PROXY;
+    delete env.HTTPS_PROXY;
+    delete env.http_proxy;
+    delete env.https_proxy;
+  }
+  return env;
+}
+
 /**
  * Run Codex exec in non-interactive mode
  */
@@ -41,6 +53,7 @@ export async function codexExec(prompt, options = {}) {
     if (model) args.push('-m', model);
     if (ephemeral) args.push('--ephemeral');
     args.push('--full-auto');
+    args.push('--skip-git-repo-check');
     args.push(prompt);
 
     const proc = execFile(CODEX_BIN, args, {
@@ -62,7 +75,21 @@ export async function codexExec(prompt, options = {}) {
  * Run Claude Code in print mode (non-interactive)
  */
 export function claudeExec(prompt, options = {}) {
-  const { cwd, model, allowedTools, timeout = 300000 } = options;
+  const { mode = process.env.CLAUDE_EXEC_MODE || 'direct' } = options;
+  if (mode === 'relay') {
+    return claudeRelayExec(prompt, options);
+  }
+  if (mode !== 'direct') {
+    throw new Error(`Unsupported Claude execution mode: ${mode}`);
+  }
+
+  const {
+    cwd,
+    model,
+    allowedTools,
+    timeout = 300000,
+    preserveProxyEnv = false
+  } = options;
   const claudeBin = findClaudeBin();
 
   return new Promise((resolve, reject) => {
@@ -71,11 +98,11 @@ export function claudeExec(prompt, options = {}) {
     if (allowedTools) args.push('--allowedTools', allowedTools);
     args.push(prompt);
 
-    execFile(claudeBin, args, {
+    const proc = execFile(claudeBin, args, {
       cwd: cwd || process.cwd(),
       timeout,
       maxBuffer: 1024 * 1024 * 10,
-      env: { ...process.env }
+      env: createClaudeEnv({ preserveProxyEnv })
     }, (err, stdout, stderr) => {
       if (err) {
         reject(new Error(`Claude failed: ${err.message}\nstderr: ${stderr}`));
@@ -83,5 +110,69 @@ export function claudeExec(prompt, options = {}) {
       }
       resolve({ stdout: stdout.trim(), stderr: stderr.trim() });
     });
+    proc.stdin?.end();
   });
+}
+
+/**
+ * Forward a Claude task to an out-of-sandbox relay process.
+ */
+export async function claudeRelayExec(prompt, options = {}) {
+  const {
+    cwd,
+    model,
+    allowedTools,
+    timeout = 300000,
+    preserveProxyEnv,
+    relayUrl = process.env.CLAUDE_RELAY_URL || DEFAULT_CLAUDE_RELAY_URL,
+    relayToken = process.env.CLAUDE_RELAY_TOKEN
+  } = options;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  const url = new URL('/claude', relayUrl.endsWith('/') ? relayUrl : `${relayUrl}/`);
+  const headers = { 'content-type': 'application/json' };
+  if (relayToken) {
+    headers.authorization = `Bearer ${relayToken}`;
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        prompt,
+        cwd,
+        model,
+        allowedTools,
+        timeout,
+        preserveProxyEnv
+      }),
+      signal: controller.signal
+    });
+    const text = await response.text();
+    let body;
+    try {
+      body = text ? JSON.parse(text) : {};
+    } catch {
+      throw new Error(`Claude relay returned non-JSON response: ${text}`);
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        `Claude relay failed (${response.status}): ${body.error || text}`
+      );
+    }
+
+    return {
+      stdout: String(body.stdout || '').trim(),
+      stderr: String(body.stderr || '').trim()
+    };
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error(`Claude relay timed out after ${timeout}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 }

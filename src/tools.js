@@ -432,14 +432,49 @@ export function registerTools(server) {
       allowedTools: z
         .string()
         .optional()
-        .describe('Comma-separated tools Claude can use, e.g. Edit,Write,Bash')
+        .describe('Comma-separated tools Claude can use, e.g. Edit,Write,Bash'),
+      mode: z
+        .enum(['direct', 'relay'])
+        .optional()
+        .describe('Execution mode: direct runs Claude in this MCP process, relay forwards to an external Claude relay server'),
+      relayUrl: z
+        .string()
+        .optional()
+        .describe('Claude relay server URL, e.g. http://127.0.0.1:38765'),
+      relayToken: z
+        .string()
+        .optional()
+        .describe('Bearer token for Claude relay auth. Prefer CLAUDE_RELAY_TOKEN env when possible.'),
+      timeout: z
+        .number()
+        .optional()
+        .describe('Timeout in milliseconds for the Claude execution'),
+      preserveProxyEnv: z
+        .boolean()
+        .optional()
+        .describe('Keep HTTP_PROXY/HTTPS_PROXY when running Claude. Defaults to false because local proxy env can break Claude Code.')
     },
-    async ({ prompt, cwd, model, allowedTools }) => {
+    async ({
+      prompt,
+      cwd,
+      model,
+      allowedTools,
+      mode,
+      relayUrl,
+      relayToken,
+      timeout,
+      preserveProxyEnv
+    }) => {
       try {
         const result = await aiRelay.claudeExec(prompt, {
           cwd,
           model,
-          allowedTools
+          allowedTools,
+          mode,
+          relayUrl,
+          relayToken,
+          timeout,
+          preserveProxyEnv
         });
         return {
           content: [
