@@ -407,6 +407,10 @@ export async function tree(
       node.type === 'TEXT' && node.characters
         ? ` text:"${node.characters.slice(0, 50)}"`
         : '';
+    const componentRef =
+      node.type === 'INSTANCE' && node.componentId
+        ? ` componentId:${node.componentId}`
+        : '';
     const color = showColor
       ? (() => {
           const hex = solidFillToHex(node);
@@ -414,7 +418,7 @@ export async function tree(
         })()
       : '';
     lines.push(
-      `${indent}${node.type} | "${node.name}" | ${w}x${h} | fills:${fills}${color}${chars} | id:${node.id}`
+      `${indent}${node.type} | "${node.name}" | ${w}x${h} | fills:${fills}${color}${chars}${componentRef} | id:${node.id}`
     );
   });
 
